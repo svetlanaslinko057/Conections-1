@@ -1374,7 +1374,7 @@ export default function AdminConnectionsPage() {
             {tabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 data-testid={`tab-${tab.id}`}
                 className={`px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-all ${
                   activeTab === tab.id
