@@ -55,6 +55,8 @@ export function AdminAuthProvider({ children }) {
     try {
       const result = await apiLogin(username, password);
       if (result.ok) {
+        // Save token to localStorage
+        setAdminToken(result.token);
         setUser({
           role: result.role,
           username: result.username,
