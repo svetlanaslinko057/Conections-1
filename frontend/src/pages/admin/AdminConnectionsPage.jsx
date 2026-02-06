@@ -7,7 +7,7 @@
  * - Stability: Tuning matrix results
  * - Alerts: Preview & manage alerts
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Component } from 'react';
 import { 
   Activity, 
   Settings, 
