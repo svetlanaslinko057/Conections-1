@@ -394,25 +394,32 @@ const EarlySignalRadar = ({ data, onSelect, selectedId, compareSelection = [] })
           const color = getColor(account);
           const opacity = getOpacity(account);
           const isSelected = selectedId === account.author_id;
+          const isInCompare = compareSelection.includes(account.author_id);
+          const isHovered = hoveredId === account.author_id;
+          const isOtherSelected = (selectedId && !isSelected) || (compareSelection.length > 0 && !isInCompare);
 
           return (
             <g
               key={account.author_id}
-              onClick={() => onSelect(account.author_id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(account.author_id);
+              }}
+              onMouseEnter={() => setHoveredId(account.author_id)}
+              onMouseLeave={() => setHoveredId(null)}
               style={{ cursor: 'pointer' }}
               className="transition-all duration-200"
             >
-              {/* Glow effect for selected */}
-              {isSelected && (
+              {/* Glow effect for selected/compare */}
+              {(isSelected || isInCompare) && (
                 <circle
                   cx={cx}
                   cy={cy}
                   r={r + 8}
                   fill="none"
-                  stroke={color}
+                  stroke={isInCompare ? '#3b82f6' : color}
                   strokeWidth={3}
                   opacity={0.5}
-                  className="animate-ping"
                 />
               )}
               
@@ -420,16 +427,50 @@ const EarlySignalRadar = ({ data, onSelect, selectedId, compareSelection = [] })
               <circle
                 cx={cx}
                 cy={cy}
-                r={r}
+                r={isSelected || isHovered ? r + 2 : r}
                 fill={color}
-                opacity={opacity}
-                stroke={isSelected ? '#fff' : 'transparent'}
-                strokeWidth={isSelected ? 3 : 0}
-                className="hover:opacity-100 transition-opacity"
+                opacity={isOtherSelected ? 0.2 : (isHovered ? 1 : opacity)}
+                stroke={isSelected || isInCompare ? '#fff' : isHovered ? '#fff' : 'transparent'}
+                strokeWidth={isSelected || isInCompare ? 3 : isHovered ? 2 : 0}
+                style={{ transition: 'all 0.2s ease' }}
               />
               
-              {/* Username label for breakout */}
-              {account.early_signal.badge === 'breakout' && (
+              {/* Tooltip on hover */}
+              {isHovered && (
+                <g>
+                  <rect
+                    x={cx - 60}
+                    y={cy - r - 45}
+                    width={120}
+                    height={35}
+                    rx={6}
+                    fill="#1f2937"
+                    opacity={0.95}
+                  />
+                  <text
+                    x={cx}
+                    y={cy - r - 28}
+                    textAnchor="middle"
+                    fill="#fff"
+                    fontSize={11}
+                    fontWeight={600}
+                  >
+                    @{account.username}
+                  </text>
+                  <text
+                    x={cx}
+                    y={cy - r - 14}
+                    textAnchor="middle"
+                    fill="#9ca3af"
+                    fontSize={9}
+                  >
+                    Score: {account.early_signal.score} | {account.early_signal.badge}
+                  </text>
+                </g>
+              )}
+              
+              {/* Username label for breakout (always visible) */}
+              {account.early_signal.badge === 'breakout' && !isHovered && (
                 <text
                   x={cx}
                   y={cy - r - 6}
