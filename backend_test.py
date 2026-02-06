@@ -84,7 +84,11 @@ class P22BackendTester:
                 if response.status_code == 200:
                     data = response.json()
                     if data.get('ok') and 'data' in data:
-                        results.append(data['data'])
+                        score_data = data['data']
+                        if 'influence_score' in score_data:
+                            results.append(score_data['influence_score'])
+                        else:
+                            return False
                     else:
                         return False
                 else:
@@ -93,10 +97,8 @@ class P22BackendTester:
             
             # Check if results are consistent (same structure, reasonable values)
             if len(results) == 3:
-                # All should have same keys and reasonable score ranges
-                first_result = results[0]
-                if 'score' in first_result and isinstance(first_result['score'], (int, float)):
-                    return 0 <= first_result['score'] <= 1000
+                # All should be reasonable score ranges
+                return all(0 <= score <= 1000 for score in results)
             return False
         except Exception as e:
             self.log(f"Scoring API test failed: {e}")
