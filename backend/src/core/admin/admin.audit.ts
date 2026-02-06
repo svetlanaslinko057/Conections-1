@@ -27,7 +27,16 @@ export type AdminAction =
   | 'SCHEDULER_START'
   | 'SCHEDULER_STOP'
   | 'USER_CREATE'
-  | 'PASSWORD_CHANGE';
+  | 'PASSWORD_CHANGE'
+  // Connections Admin Actions (P2.1)
+  | 'CONNECTIONS_TOGGLE'
+  | 'CONNECTIONS_SOURCE_CHANGE'
+  | 'CONNECTIONS_CONFIG_APPLY'
+  | 'CONNECTIONS_TUNING_RUN'
+  | 'CONNECTIONS_ALERTS_RUN'
+  | 'CONNECTIONS_ALERTS_CONFIG'
+  | 'CONNECTIONS_ALERT_SENT'
+  | 'CONNECTIONS_ALERT_SUPPRESSED';
 
 export interface IAdminAuditLog extends Document {
   ts: number;
