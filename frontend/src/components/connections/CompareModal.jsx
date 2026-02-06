@@ -301,23 +301,27 @@ export default function CompareModal({
   );
 }
 
-// Account Header
+// Account Header - P1.2: Equal visual weight for A vs B
 function AccountHeader({ account, label, winner }) {
   return (
-    <div className={`p-4 rounded-xl border-2 ${winner ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`p-4 rounded-xl border-2 transition-all ${
+      winner 
+        ? 'border-green-400 bg-green-50 shadow-sm' 
+        : 'border-gray-200 bg-gray-50'
+    }`}>
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md ${
           label === 'A' ? 'bg-blue-500' : 'bg-purple-500'
         }`}>
           {label}
         </div>
-        <div className="flex-1">
-          <div className="font-bold text-gray-900">@{account?.username || 'unknown'}</div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-gray-900 truncate">@{account?.username || 'unknown'}</div>
           <div className="text-sm text-gray-500 capitalize">{account?.profile || 'retail'}</div>
         </div>
         {winner && (
-          <div className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
-            LEADER
+          <div className="px-2.5 py-1 bg-green-500 text-white text-xs font-bold rounded-full flex items-center gap-1 shadow-sm">
+            <span>✓</span> Leader
           </div>
         )}
       </div>
