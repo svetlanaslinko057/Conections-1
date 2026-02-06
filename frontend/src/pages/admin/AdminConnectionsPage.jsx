@@ -1245,11 +1245,29 @@ class TabErrorBoundary extends Component {
 
 export default function AdminConnectionsPage() {
   const { token, isAuthenticated, loading: authLoading } = useAdminAuth();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get initial tab from URL query param
+  const tabFromUrl = searchParams.get('tab') || 'overview';
+  const validTabs = ['overview', 'config', 'stability', 'alerts'];
+  const initialTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'overview';
+  
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [overview, setOverview] = useState(null);
   const [overviewError, setOverviewError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Update URL when tab changes
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === 'overview') {
+      searchParams.delete('tab');
+    } else {
+      searchParams.set('tab', tabId);
+    }
+    setSearchParams(searchParams);
+  };
 
   const fetchOverview = useCallback(async () => {
     if (!token) {
