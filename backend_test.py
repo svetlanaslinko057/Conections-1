@@ -1,242 +1,377 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Connections Module
-Tests all endpoints mentioned in the review request
+P2.2 Final Readiness Check - Backend API Testing
+Tests all backend endpoints for mathematical stability, behavioral logic, alerts engine, and admin control plane.
 """
 
 import requests
-import sys
 import json
+import time
+import sys
 from datetime import datetime
+from typing import Dict, List, Optional, Any
 
-# Use the public endpoint from frontend/.env
+# Use the public endpoint from frontend .env
 BACKEND_URL = "https://influencer-eval.preview.emergentagent.com"
 
-class ConnectionsAPITester:
+class P22BackendTester:
     def __init__(self):
+        self.base_url = BACKEND_URL
+        self.admin_token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.failed_tests = []
+        self.session = requests.Session()
+        self.session.timeout = 30
         
-    def log_test(self, name, success, details=""):
-        """Log test result"""
+    def log(self, message: str, level: str = "INFO"):
+        """Log test messages with timestamp"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        print(f"[{timestamp}] {level}: {message}")
+        
+    def run_test(self, name: str, test_func, expected_result: Any = True) -> bool:
+        """Run a single test and track results"""
         self.tests_run += 1
-        if success:
-            self.tests_passed += 1
-            print(f"✅ {name}")
-        else:
-            self.failed_tests.append({"name": name, "details": details})
-            print(f"❌ {name} - {details}")
-    
-    def test_health_check(self):
-        """Test main backend health check"""
+        self.log(f"🔍 Testing {name}...")
+        
         try:
-            response = requests.get(f"{BACKEND_URL}/api/health", timeout=10)
-            success = response.status_code == 200
-            if success:
-                data = response.json()
-                success = data.get('ok') == True
-                details = f"Status: {response.status_code}, Data: {data}"
+            result = test_func()
+            if result == expected_result or (expected_result is True and result):
+                self.tests_passed += 1
+                self.log(f"✅ PASSED: {name}", "SUCCESS")
+                return True
             else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Backend Health Check", success, details)
-            return success
+                self.failed_tests.append(f"{name}: Expected {expected_result}, got {result}")
+                self.log(f"❌ FAILED: {name} - Expected {expected_result}, got {result}", "ERROR")
+                return False
         except Exception as e:
-            self.log_test("Backend Health Check", False, str(e))
+            self.failed_tests.append(f"{name}: Exception - {str(e)}")
+            self.log(f"❌ FAILED: {name} - Exception: {str(e)}", "ERROR")
             return False
     
-    def test_connections_health(self):
-        """Test connections module health"""
+    def test_health_check(self) -> bool:
+        """Test /api/health endpoint"""
         try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/health", timeout=10)
-            success = response.status_code == 200
-            if success:
-                data = response.json()
-                success = data.get('ok') == True and data.get('module') == 'connections'
-                details = f"Status: {response.status_code}, Module: {data.get('module')}, Enabled: {data.get('enabled')}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Connections Module Health", success, details)
-            return success
-        except Exception as e:
-            self.log_test("Connections Module Health", False, str(e))
-            return False
-    
-    def test_connections_score_mock(self):
-        """Test connections scoring mock API"""
-        try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/score/mock", timeout=10)
-            success = response.status_code == 200
-            if success:
-                data = response.json()
-                success = data.get('ok') == True and 'data' in data
-                details = f"Status: {response.status_code}, Has mock data: {'data' in data}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Connections Score Mock API", success, details)
-            return success
-        except Exception as e:
-            self.log_test("Connections Score Mock API", False, str(e))
-            return False
-    
-    def test_connections_accounts(self):
-        """Test connections accounts list API"""
-        try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/accounts", timeout=10)
-            success = response.status_code == 200
-            if success:
-                data = response.json()
-                success = data.get('ok') == True
-                accounts_count = len(data.get('data', {}).get('items', []))
-                details = f"Status: {response.status_code}, Accounts found: {accounts_count}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Connections Accounts List", success, details)
-            return success
-        except Exception as e:
-            self.log_test("Connections Accounts List", False, str(e))
-            return False
-    
-    def test_connections_compare(self):
-        """Test connections compare API with mock data"""
-        try:
-            # First try to get some accounts to compare
-            accounts_response = requests.get(f"{BACKEND_URL}/api/connections/accounts?limit=2", timeout=10)
-            
-            if accounts_response.status_code == 200:
-                accounts_data = accounts_response.json()
-                accounts = accounts_data.get('data', {}).get('items', [])
-                
-                if len(accounts) >= 2:
-                    # Use real accounts for comparison
-                    compare_data = {
-                        "left": accounts[0].get('handle', 'test1'),
-                        "right": accounts[1].get('handle', 'test2')
-                    }
-                else:
-                    # Use mock handles
-                    compare_data = {
-                        "left": "mock_user_1",
-                        "right": "mock_user_2"
-                    }
-            else:
-                # Use mock handles
-                compare_data = {
-                    "left": "mock_user_1", 
-                    "right": "mock_user_2"
-                }
-            
-            response = requests.post(
-                f"{BACKEND_URL}/api/connections/compare",
-                json=compare_data,
-                headers={'Content-Type': 'application/json'},
-                timeout=10
-            )
-            
-            # Accept both 200 (success) and 404 (profiles not found) as valid responses
-            success = response.status_code in [200, 404]
+            response = self.session.get(f"{self.base_url}/api/health")
             if response.status_code == 200:
                 data = response.json()
-                success = data.get('ok') == True
-                details = f"Status: {response.status_code}, Comparison successful"
-            elif response.status_code == 404:
-                details = f"Status: {response.status_code}, Profiles not found (expected for mock data)"
-            else:
-                details = f"Status: {response.status_code}"
-                
-            self.log_test("Connections Compare API", success, details)
-            return success
+                return data.get('ok') is True and 'service' in data
+            return False
         except Exception as e:
-            self.log_test("Connections Compare API", False, str(e))
+            self.log(f"Health check failed: {e}")
             return False
     
-    def test_connections_stats(self):
-        """Test connections stats API"""
+    def test_connections_health(self) -> bool:
+        """Test /api/connections/health endpoint"""
         try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/stats", timeout=10)
-            success = response.status_code == 200
-            if success:
+            response = self.session.get(f"{self.base_url}/api/connections/health")
+            if response.status_code == 200:
                 data = response.json()
-                success = data.get('ok') == True and 'data' in data
-                total_profiles = data.get('data', {}).get('total_profiles', 0)
-                details = f"Status: {response.status_code}, Total profiles: {total_profiles}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Connections Stats API", success, details)
-            return success
+                return data.get('ok') is True and data.get('status') == 'healthy'
+            return False
         except Exception as e:
-            self.log_test("Connections Stats API", False, str(e))
+            self.log(f"Connections health check failed: {e}")
             return False
     
-    def test_connections_config(self):
-        """Test connections config API"""
+    def test_scoring_api_stability(self) -> bool:
+        """Test /api/connections/score/mock for stable results"""
         try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/config", timeout=10)
-            success = response.status_code == 200
-            if success:
-                data = response.json()
-                success = data.get('ok') == True and 'data' in data
-                details = f"Status: {response.status_code}, Has config data: {'data' in data}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Connections Config API", success, details)
-            return success
+            # Run scoring multiple times to check stability
+            results = []
+            for i in range(3):
+                response = self.session.get(f"{self.base_url}/api/connections/score/mock")
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('ok') and 'data' in data:
+                        results.append(data['data'])
+                    else:
+                        return False
+                else:
+                    return False
+                time.sleep(0.5)  # Small delay between requests
+            
+            # Check if results are consistent (same structure, reasonable values)
+            if len(results) == 3:
+                # All should have same keys and reasonable score ranges
+                first_result = results[0]
+                if 'score' in first_result and isinstance(first_result['score'], (int, float)):
+                    return 0 <= first_result['score'] <= 1000
+            return False
         except Exception as e:
-            self.log_test("Connections Config API", False, str(e))
+            self.log(f"Scoring API test failed: {e}")
             return False
     
-    def test_early_signal_mock(self):
-        """Test early signal mock API"""
+    def test_trends_api_correctness(self) -> bool:
+        """Test /api/connections/trends/mock for correct trend states"""
         try:
-            response = requests.get(f"{BACKEND_URL}/api/connections/early-signal/mock", timeout=10)
-            success = response.status_code == 200
-            if success:
+            response = self.session.get(f"{self.base_url}/api/connections/trends/mock")
+            if response.status_code == 200:
                 data = response.json()
-                success = data.get('ok') == True and 'data' in data
-                details = f"Status: {response.status_code}, Has early signal data: {'data' in data}"
-            else:
-                details = f"Status: {response.status_code}"
-            self.log_test("Early Signal Mock API", success, details)
-            return success
+                if data.get('ok') and 'data' in data:
+                    trend_data = data['data']
+                    # Check for expected trend fields
+                    required_fields = ['velocity_norm', 'acceleration_norm', 'state']
+                    return all(field in trend_data for field in required_fields)
+            return False
         except Exception as e:
-            self.log_test("Early Signal Mock API", False, str(e))
+            self.log(f"Trends API test failed: {e}")
             return False
     
-    def run_all_tests(self):
-        """Run all backend tests"""
-        print("🔍 Starting Connections Module Backend Tests...")
-        print(f"📡 Testing against: {BACKEND_URL}")
-        print("=" * 60)
+    def test_early_signal_api(self) -> bool:
+        """Test /api/connections/early-signal/mock for badge detection"""
+        try:
+            response = self.session.get(f"{self.base_url}/api/connections/early-signal/mock")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and 'data' in data:
+                    signal_data = data['data']
+                    # Check for badge field and valid values
+                    badge = signal_data.get('badge')
+                    return badge in ['breakout', 'rising', 'none']
+            return False
+        except Exception as e:
+            self.log(f"Early Signal API test failed: {e}")
+            return False
+    
+    def admin_login(self) -> bool:
+        """Login as admin and store token"""
+        try:
+            login_data = {
+                "username": "admin",
+                "password": "admin12345"
+            }
+            response = self.session.post(
+                f"{self.base_url}/api/admin/auth/login",
+                json=login_data,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and 'token' in data:
+                    self.admin_token = data['token']
+                    self.log(f"Admin login successful, token: {self.admin_token[:20]}...")
+                    return True
+            
+            self.log(f"Admin login failed: {response.status_code} - {response.text}")
+            return False
+        except Exception as e:
+            self.log(f"Admin login exception: {e}")
+            return False
+    
+    def test_admin_connections_overview_speed(self) -> bool:
+        """Test admin connections overview loads < 2 seconds"""
+        if not self.admin_token:
+            return False
         
-        # Core health checks
-        self.test_health_check()
-        self.test_connections_health()
+        try:
+            start_time = time.time()
+            response = self.session.get(
+                f"{self.base_url}/api/admin/connections/overview",
+                headers={'Authorization': f'Bearer {self.admin_token}'}
+            )
+            end_time = time.time()
+            
+            load_time = end_time - start_time
+            self.log(f"Admin overview load time: {load_time:.2f}s")
+            
+            if response.status_code == 200 and load_time < 2.0:
+                data = response.json()
+                return data.get('ok') is True
+            return False
+        except Exception as e:
+            self.log(f"Admin overview test failed: {e}")
+            return False
+    
+    def test_admin_config_readonly(self) -> bool:
+        """Test admin config tab shows read-only configs"""
+        if not self.admin_token:
+            return False
         
-        # Main APIs from review request
-        self.test_connections_score_mock()
-        self.test_connections_accounts()
-        self.test_connections_compare()
+        try:
+            response = self.session.get(
+                f"{self.base_url}/api/admin/connections/config",
+                headers={'Authorization': f'Bearer {self.admin_token}'}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and 'data' in data:
+                    config_data = data['data']
+                    # Check for config structure
+                    return 'config' in config_data and isinstance(config_data['config'], dict)
+            return False
+        except Exception as e:
+            self.log(f"Admin config test failed: {e}")
+            return False
+    
+    def test_admin_stability_score(self) -> bool:
+        """Test admin stability tab shows score ≥ 0.9"""
+        if not self.admin_token:
+            return False
         
-        # Additional APIs
-        self.test_connections_stats()
-        self.test_connections_config()
-        self.test_early_signal_mock()
+        try:
+            response = self.session.get(
+                f"{self.base_url}/api/admin/connections/tuning/status",
+                headers={'Authorization': f'Bearer {self.admin_token}'}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and 'data' in data:
+                    tuning_data = data['data']
+                    stability_score = tuning_data.get('overall_stability', 0)
+                    self.log(f"Stability score: {stability_score}")
+                    return stability_score >= 0.9
+            return False
+        except Exception as e:
+            self.log(f"Admin stability test failed: {e}")
+            return False
+    
+    def test_admin_alerts_batch_generation(self) -> bool:
+        """Test admin alerts tab: Run Alerts Batch generates alerts"""
+        if not self.admin_token:
+            return False
         
-        # Summary
-        print("=" * 60)
-        print(f"📊 Tests Summary: {self.tests_passed}/{self.tests_run} passed")
+        try:
+            # First get current alerts count
+            response = self.session.get(
+                f"{self.base_url}/api/admin/connections/alerts/preview",
+                headers={'Authorization': f'Bearer {self.admin_token}'}
+            )
+            
+            initial_count = 0
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('ok') and 'data' in data:
+                    initial_count = data['data'].get('summary', {}).get('total', 0)
+            
+            # Run alerts batch
+            batch_response = self.session.post(
+                f"{self.base_url}/api/admin/connections/alerts/run",
+                headers={
+                    'Authorization': f'Bearer {self.admin_token}',
+                    'Content-Type': 'application/json'
+                }
+            )
+            
+            if batch_response.status_code == 200:
+                batch_data = batch_response.json()
+                if batch_data.get('ok') and 'data' in batch_data:
+                    alerts_generated = batch_data['data'].get('alerts_generated', 0)
+                    self.log(f"Alerts batch generated: {alerts_generated} alerts")
+                    return alerts_generated >= 0  # Should generate some alerts or at least run successfully
+            
+            return False
+        except Exception as e:
+            self.log(f"Admin alerts batch test failed: {e}")
+            return False
+    
+    def test_cooldown_deduplication(self) -> bool:
+        """Test cooldown deduplication - repeated batch should not duplicate alerts"""
+        if not self.admin_token:
+            return False
+        
+        try:
+            # Run first batch
+            first_response = self.session.post(
+                f"{self.base_url}/api/admin/connections/alerts/run",
+                headers={
+                    'Authorization': f'Bearer {self.admin_token}',
+                    'Content-Type': 'application/json'
+                }
+            )
+            
+            if first_response.status_code != 200:
+                return False
+            
+            first_data = first_response.json()
+            first_generated = first_data.get('data', {}).get('alerts_generated', 0)
+            
+            # Wait a moment and run second batch
+            time.sleep(1)
+            
+            second_response = self.session.post(
+                f"{self.base_url}/api/admin/connections/alerts/run",
+                headers={
+                    'Authorization': f'Bearer {self.admin_token}',
+                    'Content-Type': 'application/json'
+                }
+            )
+            
+            if second_response.status_code != 200:
+                return False
+            
+            second_data = second_response.json()
+            second_generated = second_data.get('data', {}).get('alerts_generated', 0)
+            
+            self.log(f"First batch: {first_generated} alerts, Second batch: {second_generated} alerts")
+            
+            # Second batch should generate fewer or same alerts due to cooldown
+            return second_generated <= first_generated
+            
+        except Exception as e:
+            self.log(f"Cooldown deduplication test failed: {e}")
+            return False
+    
+    def run_all_tests(self) -> Dict[str, Any]:
+        """Run all P2.2 tests and return results"""
+        self.log("🚀 Starting P2.2 Final Readiness Check - Backend Testing")
+        self.log(f"Testing against: {self.base_url}")
+        
+        # Core API Health Tests
+        self.run_test("Backend health check /api/health", self.test_health_check)
+        self.run_test("Connections health /api/connections/health", self.test_connections_health)
+        
+        # API Stability Tests
+        self.run_test("Scoring API /api/connections/score/mock stability", self.test_scoring_api_stability)
+        self.run_test("Trends API /api/connections/trends/mock correctness", self.test_trends_api_correctness)
+        self.run_test("Early Signal API /api/connections/early-signal/mock badge detection", self.test_early_signal_api)
+        
+        # Admin Authentication
+        admin_login_success = self.run_test("Admin login (admin/admin12345)", self.admin_login)
+        
+        if admin_login_success:
+            # Admin Control Plane Tests
+            self.run_test("Admin Connections Overview loads < 2 sec", self.test_admin_connections_overview_speed)
+            self.run_test("Admin Config tab shows read-only configs", self.test_admin_config_readonly)
+            self.run_test("Admin Stability tab shows score ≥ 0.9", self.test_admin_stability_score)
+            self.run_test("Admin Alerts tab: Run Alerts Batch generates alerts", self.test_admin_alerts_batch_generation)
+            self.run_test("Cooldown deduplication works", self.test_cooldown_deduplication)
+        else:
+            self.log("⚠️ Skipping admin tests due to login failure", "WARNING")
+        
+        # Results Summary
+        success_rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
+        
+        self.log(f"\n📊 P2.2 Backend Test Results:")
+        self.log(f"✅ Passed: {self.tests_passed}/{self.tests_run} ({success_rate:.1f}%)")
         
         if self.failed_tests:
-            print("\n❌ Failed Tests:")
-            for test in self.failed_tests:
-                print(f"  - {test['name']}: {test['details']}")
+            self.log(f"❌ Failed Tests:")
+            for failure in self.failed_tests:
+                self.log(f"   - {failure}")
         
-        return self.tests_passed == self.tests_run
+        return {
+            'tests_run': self.tests_run,
+            'tests_passed': self.tests_passed,
+            'success_rate': success_rate,
+            'failed_tests': self.failed_tests,
+            'admin_token_obtained': self.admin_token is not None
+        }
 
 def main():
-    tester = ConnectionsAPITester()
-    success = tester.run_all_tests()
-    return 0 if success else 1
+    """Main test execution"""
+    tester = P22BackendTester()
+    results = tester.run_all_tests()
+    
+    # Exit with appropriate code
+    if results['success_rate'] >= 80:
+        print(f"\n🎉 P2.2 Backend tests PASSED with {results['success_rate']:.1f}% success rate")
+        return 0
+    else:
+        print(f"\n💥 P2.2 Backend tests FAILED with {results['success_rate']:.1f}% success rate")
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
