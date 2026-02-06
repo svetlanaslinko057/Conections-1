@@ -62,14 +62,16 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
    * GET /admin/connections/overview
    * Quick status check for the module
    */
-  app.get('/overview', async (req: FastifyRequest, reply: FastifyReply) => {
+  app.get('/overview', async (_req: FastifyRequest, reply: FastifyReply) => {
+    const alertsSummary = getAlertsSummary();
+    
     // Generate some mock stats
     const stats = {
       ...connectionsState.stats,
       accounts_24h: Math.floor(Math.random() * 50) + 100,
       early_signals: Math.floor(Math.random() * 15) + 5,
       breakouts: Math.floor(Math.random() * 5) + 1,
-      alerts_generated: alertsPreview.length,
+      alerts_generated: alertsSummary.total,
     };
 
     return reply.send({
