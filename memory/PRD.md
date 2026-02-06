@@ -40,6 +40,37 @@
   - Authentication Required screen (not hang)
   - Error messages instead of infinite loading
 
+### 2026-02-06 - P1.1 Polish Admin Connections UI (DONE)
+- ✅ **Overview**: 3 logical blocks (Status, Activity 24h, Warnings)
+  - Status badges (ENABLED/HEALTHY with colors)
+  - Activity cards with icons
+  - Data Source selector
+  - Toast notifications
+- ✅ **Config**: Collapsible sections, read-only/editable distinction
+  - Version display with history
+  - Apply → Confirm → Success flow
+- ✅ **Stability**: Big percentage score, status indicators
+  - Parameter Sensitivity with safe ranges
+  - Warning banners for low stability
+- ✅ **Alerts**: Summary cards, table view with filters
+  - Alert Types toggles (ON/OFF)
+  - Filter by type, hide suppressed
+  - Send/Suppress actions
+
+### 2026-02-06 - P1.2 Radar / Compare UX (DONE)
+- ✅ **Radar View**: Hover tooltips, selected state with outline
+  - Hover shows tooltip without resetting selection
+  - Click selects account
+  - Alpha Zone highlighted
+- ✅ **Compare Mode**: Explicit mode with banner
+  - "Select 2 accounts to compare" message
+  - Selection counter (0/2)
+- ✅ **Compare Modal**: Symmetric A vs B layout
+  - Equal visual weight for both sides
+  - Improved Verdict block with clear title
+- ✅ **Table View**: Sorting by Early Signal, Accel, Influence
+- ✅ **Session Persistence**: Token saved to localStorage
+
 ## Working Endpoints
 
 ### Public Connections API
@@ -71,11 +102,7 @@
 
 ## Prioritized Backlog
 
-### P1 - CORE COMPLETION (Next)
-- [ ] P1.1: Polish Admin Connections UI
-- [ ] P1.2: Radar/Compare UX fixes
-
-### P2 - SYSTEM READINESS
+### P2 - SYSTEM READINESS (Next)
 - [ ] P2.1: Alerts Engine (preview-only, no send)
 - [ ] P2.2: Final Readiness Check (smoke tests)
 
