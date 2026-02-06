@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import AdminLayout from '../../components/admin/AdminLayout';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
