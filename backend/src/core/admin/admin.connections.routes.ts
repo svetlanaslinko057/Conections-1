@@ -327,60 +327,126 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
   });
 
   // ============================================================
-  // ALERTS
+  // ALERTS (P2.1 - Alerts Engine)
   // ============================================================
 
   /**
    * GET /admin/connections/alerts/preview
-   * Preview pending/recent alerts
+   * Preview pending/recent alerts from Alerts Engine
    */
   app.get('/alerts/preview', async (req: FastifyRequest, reply: FastifyReply) => {
-    // Generate some mock alerts for demo
-    if (alertsPreview.length === 0) {
-      const mockAlerts = [
-        {
-          id: 'alert_001',
-          timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-          type: 'EARLY_BREAKOUT',
-          account: { author_id: 'demo_001', username: 'alpha_seeker' },
-          severity: 0.82,
-          status: 'preview' as const,
-          reason: 'Acceleration > 0.4, confidence > 0.6, retail profile',
-        },
-        {
-          id: 'alert_002',
-          timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-          type: 'STRONG_ACCELERATION',
-          account: { author_id: 'demo_005', username: 'defi_hunter' },
-          severity: 0.71,
-          status: 'preview' as const,
-          reason: 'Acceleration spike: +0.65 in 24h',
-        },
-        {
-          id: 'alert_003',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-          type: 'RISK_SPIKE',
-          account: { author_id: 'demo_012', username: 'volatile_trader' },
-          severity: 0.68,
-          status: 'suppressed' as const,
-          reason: 'Risk level changed: low → high',
-        },
-      ];
-      alertsPreview = mockAlerts;
-    }
+    const query = req.query as { type?: string; status?: string; limit?: string };
+    
+    const alerts = getAlerts({
+      type: query.type as AlertType | undefined,
+      status: query.status as 'preview' | 'sent' | 'suppressed' | undefined,
+      limit: query.limit ? parseInt(query.limit) : 50,
+    });
+    
+    const summary = getAlertsSummary();
+    const config = getAlertsEngineConfig();
 
     return reply.send({
       ok: true,
       data: {
-        alerts: alertsPreview,
-        config: alertsConfig,
-        summary: {
-          total: alertsPreview.length,
-          preview: alertsPreview.filter(a => a.status === 'preview').length,
-          sent: alertsPreview.filter(a => a.status === 'sent').length,
-          suppressed: alertsPreview.filter(a => a.status === 'suppressed').length,
+        alerts,
+        config: {
+          enabled: config.enabled,
+          types: config.conditions,
+          global_cooldown_minutes: config.global_cooldown_minutes,
         },
+        summary,
       },
+    });
+  });
+
+  /**
+   * POST /admin/connections/alerts/run
+   * Run alerts batch on current accounts (P2.1)
+   */
+  app.post('/alerts/run', async (req: FastifyRequest, reply: FastifyReply) => {
+    const adminId = (req as any).adminUser?.id || 'unknown';
+    
+    // Generate mock account states for testing
+    // In production, this would fetch real accounts from DB
+    const mockAccounts: AccountState[] = [
+      {
+        author_id: 'demo_001',
+        username: 'alpha_seeker',
+        profile: 'retail',
+        risk_level: 'low',
+        influence_base: 650,
+        influence_adjusted: 782,
+        trend: { velocity_norm: 0.25, acceleration_norm: 0.42, state: 'growing' },
+        early_signal: { score: 720, badge: 'breakout', confidence: 0.72 },
+      },
+      {
+        author_id: 'demo_002',
+        username: 'defi_hunter',
+        profile: 'influencer',
+        risk_level: 'low',
+        influence_base: 580,
+        influence_adjusted: 840,
+        trend: { velocity_norm: 0.38, acceleration_norm: 0.65, state: 'growing' },
+        early_signal: { score: 840, badge: 'breakout', confidence: 0.81 },
+      },
+      {
+        author_id: 'demo_003',
+        username: 'token_master',
+        profile: 'retail',
+        risk_level: 'medium',
+        influence_base: 420,
+        influence_adjusted: 610,
+        trend: { velocity_norm: 0.18, acceleration_norm: 0.31, state: 'growing' },
+        early_signal: { score: 580, badge: 'rising', confidence: 0.58 },
+      },
+      {
+        author_id: 'demo_004',
+        username: 'whale_watcher',
+        profile: 'whale',
+        risk_level: 'low',
+        influence_base: 920,
+        influence_adjusted: 950,
+        trend: { velocity_norm: 0.08, acceleration_norm: 0.12, state: 'stable' },
+        early_signal: { score: 380, badge: 'none', confidence: 0.35 },
+      },
+      {
+        author_id: 'demo_005',
+        username: 'volatile_trader',
+        profile: 'retail',
+        risk_level: 'high',
+        influence_base: 380,
+        influence_adjusted: 420,
+        trend: { velocity_norm: 0.52, acceleration_norm: 0.68, state: 'volatile' },
+        early_signal: { score: 650, badge: 'breakout', confidence: 0.62 },
+      },
+      {
+        author_id: 'demo_006',
+        username: 'steady_growth',
+        profile: 'influencer',
+        risk_level: 'low',
+        influence_base: 720,
+        influence_adjusted: 810,
+        trend: { velocity_norm: 0.22, acceleration_norm: 0.28, state: 'growing' },
+        early_signal: { score: 520, badge: 'rising', confidence: 0.55 },
+      },
+    ];
+    
+    const result = runAlertsBatch(mockAccounts);
+    
+    await logAdminAction({
+      adminId,
+      action: 'CONNECTIONS_ALERTS_RUN',
+      details: result,
+      ip: req.ip,
+    });
+    
+    // Update stats
+    connectionsState.stats.alerts_generated += result.alerts_generated;
+
+    return reply.send({
+      ok: true,
+      data: result,
     });
   });
 
@@ -389,18 +455,18 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
    * Update alert configuration
    */
   app.post('/alerts/config', async (req: FastifyRequest, reply: FastifyReply) => {
-    const body = req.body as Partial<typeof alertsConfig>;
+    const body = req.body as {
+      enabled?: boolean;
+      types?: Record<string, { enabled?: boolean; severity_min?: number; cooldown_minutes?: number }>;
+      global_cooldown_minutes?: number;
+    };
     const adminId = (req as any).adminUser?.id || 'unknown';
 
-    if (body.enabled !== undefined) {
-      alertsConfig.enabled = body.enabled;
-    }
-    if (body.types) {
-      alertsConfig.types = { ...alertsConfig.types, ...body.types };
-    }
-    if (body.global_cooldown_minutes !== undefined) {
-      alertsConfig.global_cooldown_minutes = body.global_cooldown_minutes;
-    }
+    const updatedConfig = updateAlertsEngineConfig({
+      enabled: body.enabled,
+      conditions: body.types as any,
+      global_cooldown_minutes: body.global_cooldown_minutes,
+    });
 
     await logAdminAction({
       adminId,
@@ -411,19 +477,24 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
 
     return reply.send({
       ok: true,
-      data: alertsConfig,
+      data: {
+        enabled: updatedConfig.enabled,
+        types: updatedConfig.conditions,
+        global_cooldown_minutes: updatedConfig.global_cooldown_minutes,
+      },
     });
   });
 
   /**
    * POST /admin/connections/alerts/send
-   * Manually send an alert (for testing)
+   * Mark alert as sent (preview-only in P2.1, no actual delivery)
    */
   app.post('/alerts/send', async (req: FastifyRequest, reply: FastifyReply) => {
     const body = req.body as { alert_id: string };
     const adminId = (req as any).adminUser?.id || 'unknown';
 
-    const alert = alertsPreview.find(a => a.id === body.alert_id);
+    const alert = updateAlertStatus(body.alert_id, 'sent');
+    
     if (!alert) {
       return reply.status(404).send({
         ok: false,
@@ -431,8 +502,9 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
         message: 'Alert not found',
       });
     }
-
-    alert.status = 'sent';
+    
+    // Update stats
+    connectionsState.stats.alerts_sent++;
 
     await logAdminAction({
       adminId,
@@ -443,7 +515,7 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
 
     return reply.send({
       ok: true,
-      message: 'Alert marked as sent',
+      message: 'Alert marked as sent (preview-only, no actual delivery)',
       data: alert,
     });
   });
@@ -456,7 +528,8 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
     const body = req.body as { alert_id: string };
     const adminId = (req as any).adminUser?.id || 'unknown';
 
-    const alert = alertsPreview.find(a => a.id === body.alert_id);
+    const alert = updateAlertStatus(body.alert_id, 'suppressed');
+    
     if (!alert) {
       return reply.status(404).send({
         ok: false,
@@ -464,8 +537,6 @@ export async function adminConnectionsRoutes(app: FastifyInstance): Promise<void
         message: 'Alert not found',
       });
     }
-
-    alert.status = 'suppressed';
 
     await logAdminAction({
       adminId,
