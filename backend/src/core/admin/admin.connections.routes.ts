@@ -41,27 +41,6 @@ let connectionsState = {
   errors: [] as string[],
 };
 
-let alertsConfig = {
-  enabled: true,
-  types: {
-    EARLY_BREAKOUT: { enabled: true, severity_min: 0.6, cooldown_minutes: 60 },
-    STRONG_ACCELERATION: { enabled: true, severity_min: 0.5, cooldown_minutes: 30 },
-    TREND_REVERSAL: { enabled: false, severity_min: 0.7, cooldown_minutes: 120 },
-    RISK_SPIKE: { enabled: true, severity_min: 0.8, cooldown_minutes: 60 },
-  },
-  global_cooldown_minutes: 15,
-};
-
-let alertsPreview: Array<{
-  id: string;
-  timestamp: string;
-  type: string;
-  account: { author_id: string; username: string };
-  severity: number;
-  status: 'preview' | 'sent' | 'suppressed';
-  reason: string;
-}> = [];
-
 // Config version tracking
 let configVersion = '0.5.3';
 let configHistory: Array<{
