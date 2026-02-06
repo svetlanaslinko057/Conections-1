@@ -14,6 +14,7 @@
  * - Alerts: Preview & manage alerts
  */
 import { useState, useEffect, useCallback, Component } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Activity, 
   Settings, 
