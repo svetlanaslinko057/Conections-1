@@ -419,24 +419,27 @@ function EarlySignalBlock({ account, winner }) {
   );
 }
 
-// Verdict Block
+// Verdict Block - P1.2 improved with clear, balanced visualization
 function VerdictBlock({ accountA, accountB, influenceWinner, earlyWinner, trendImpact }) {
   // Determine overall verdict
-  let verdict = '';
+  let verdictTitle = '';
+  let verdictBody = '';
   let verdictType = 'neutral';
   
   if (influenceWinner === earlyWinner && influenceWinner !== 'tie') {
-    verdict = influenceWinner === 'a' 
-      ? `@${accountA?.username} выигрывает по всем показателям.`
-      : `@${accountB?.username} выигрывает по всем показателям.`;
+    const winner = influenceWinner === 'a' ? accountA : accountB;
+    verdictTitle = `@${winner?.username} currently leads`;
+    verdictBody = 'Leads in both influence score and early signal momentum.';
     verdictType = 'clear';
-  } else if (influenceWinner !== earlyWinner) {
+  } else if (influenceWinner !== earlyWinner && influenceWinner !== 'tie' && earlyWinner !== 'tie') {
     const inflWinner = influenceWinner === 'a' ? accountA : accountB;
     const earlyWinnerAcc = earlyWinner === 'a' ? accountA : accountB;
-    verdict = `@${inflWinner?.username} имеет больший текущий influence, но @${earlyWinnerAcc?.username} показывает более сильный ранний сигнал и может обогнать в будущем.`;
+    verdictTitle = 'Mixed signals';
+    verdictBody = `Although @${inflWinner?.username} has higher influence, @${earlyWinnerAcc?.username} shows stronger acceleration and may overtake soon.`;
     verdictType = 'mixed';
   } else {
-    verdict = 'Аккаунты имеют схожие показатели. Различия в деталях.';
+    verdictTitle = 'Comparable performance';
+    verdictBody = 'Both accounts show similar metrics. Differences are in the details.';
     verdictType = 'tie';
   }
 
@@ -450,9 +453,10 @@ function VerdictBlock({ accountA, accountB, influenceWinner, earlyWinner, trendI
         <Scale className="w-4 h-4" />
         Verdict
       </h3>
-      <p className="text-gray-800 leading-relaxed">{verdict}</p>
+      <h4 className="font-semibold text-gray-900 text-lg mb-2">{verdictTitle}</h4>
+      <p className="text-gray-700 leading-relaxed">{verdictBody}</p>
       {trendImpact && (
-        <p className="text-sm text-gray-600 mt-2 italic">{trendImpact}</p>
+        <p className="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-200 italic">{trendImpact}</p>
       )}
     </div>
   );
