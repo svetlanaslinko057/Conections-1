@@ -10,6 +10,7 @@ import {
   login as apiLogin, 
   logout as apiLogout,
   getAdminToken,
+  setAdminToken,
 } from '../api/admin.api';
 
 const AdminAuthContext = createContext(null);
