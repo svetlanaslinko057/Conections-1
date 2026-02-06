@@ -284,10 +284,12 @@ class P22BackendTester:
                 headers={
                     'Authorization': f'Bearer {self.admin_token}',
                     'Content-Type': 'application/json'
-                }
+                },
+                json={}  # Send empty JSON object
             )
             
             if first_response.status_code != 200:
+                self.log(f"First batch failed: {first_response.status_code} - {first_response.text}")
                 return False
             
             first_data = first_response.json()
@@ -301,10 +303,12 @@ class P22BackendTester:
                 headers={
                     'Authorization': f'Bearer {self.admin_token}',
                     'Content-Type': 'application/json'
-                }
+                },
+                json={}  # Send empty JSON object
             )
             
             if second_response.status_code != 200:
+                self.log(f"Second batch failed: {second_response.status_code} - {second_response.text}")
                 return False
             
             second_data = second_response.json()
