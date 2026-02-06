@@ -72,6 +72,11 @@ const AdminAuditLogSchema = new Schema<IAdminAuditLog>(
         'CIRCUIT_BREAKER_RESET',
         'SNAPSHOT_RUN', 'SCHEDULER_START', 'SCHEDULER_STOP',
         'USER_CREATE', 'PASSWORD_CHANGE',
+        // Connections Admin Actions
+        'CONNECTIONS_TOGGLE', 'CONNECTIONS_SOURCE_CHANGE', 
+        'CONNECTIONS_CONFIG_APPLY', 'CONNECTIONS_TUNING_RUN',
+        'CONNECTIONS_ALERTS_RUN', 'CONNECTIONS_ALERTS_CONFIG',
+        'CONNECTIONS_ALERT_SENT', 'CONNECTIONS_ALERT_SUPPRESSED',
       ],
     },
     resource: { type: String },
