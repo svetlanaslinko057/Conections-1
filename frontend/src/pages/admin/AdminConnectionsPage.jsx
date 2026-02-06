@@ -601,30 +601,81 @@ const ConfigSection = ({ title, config }) => {
 };
 
 // ============================================================
+// ERROR BOUNDARY FOR TABS
+// ============================================================
+import { Component } from 'react';
+
+class TabErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-50 rounded-xl p-6 border border-red-200">
+          <div className="flex items-center gap-2 text-red-600 mb-2">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="font-medium">{this.props.tabName} temporarily unavailable</span>
+          </div>
+          <p className="text-sm text-red-500">{this.state.error?.message || 'An error occurred'}</p>
+          <button 
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="mt-3 text-sm text-red-600 underline"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 
 export default function AdminConnectionsPage() {
-  const { token } = useAdminAuth();
+  const { token, isAuthenticated, loading: authLoading } = useAdminAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [overview, setOverview] = useState(null);
+  const [overviewError, setOverviewError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchOverview = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    setOverviewError(null);
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/connections/overview`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.ok) setOverview(data.data);
+      if (data.ok) {
+        setOverview(data.data);
+      } else {
+        setOverviewError(data.message || data.error || 'Failed to load overview');
+      }
     } catch (err) {
       console.error('Overview fetch error:', err);
+      setOverviewError(err.message || 'Network error');
     }
     setLoading(false);
   }, [token]);
 
-  useEffect(() => { fetchOverview(); }, [fetchOverview]);
+  useEffect(() => { 
+    if (!authLoading) {
+      fetchOverview(); 
+    }
+  }, [fetchOverview, authLoading]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
@@ -632,6 +683,39 @@ export default function AdminConnectionsPage() {
     { id: 'stability', label: 'Stability', icon: Shield },
     { id: 'alerts', label: 'Alerts', icon: Bell },
   ];
+
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-3" />
+          <p className="text-gray-500">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show login prompt
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 shadow-lg max-w-md w-full text-center">
+          <div className="p-3 bg-red-100 rounded-full w-fit mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-500 mb-6">Please log in to access the Admin Connections panel.</p>
+          <a 
+            href="/admin/login" 
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -663,6 +747,7 @@ export default function AdminConnectionsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                data-testid={`tab-${tab.id}`}
                 className={`px-4 py-3 font-medium text-sm flex items-center gap-2 border-b-2 transition-all ${
                   activeTab === tab.id
                     ? 'border-blue-500 text-blue-600'
@@ -680,16 +765,40 @@ export default function AdminConnectionsPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         {activeTab === 'overview' && (
-          <OverviewTab data={overview} token={token} onRefresh={fetchOverview} />
+          <TabErrorBoundary tabName="Overview">
+            {overviewError ? (
+              <div className="bg-red-50 rounded-xl p-6 border border-red-200">
+                <div className="flex items-center gap-2 text-red-600 mb-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span className="font-medium">Failed to load Overview</span>
+                </div>
+                <p className="text-sm text-red-500">{overviewError}</p>
+                <button 
+                  onClick={fetchOverview}
+                  className="mt-3 text-sm text-red-600 underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <OverviewTab data={overview} token={token} onRefresh={fetchOverview} />
+            )}
+          </TabErrorBoundary>
         )}
         {activeTab === 'config' && (
-          <ConfigTab token={token} onRefresh={fetchOverview} />
+          <TabErrorBoundary tabName="Config">
+            <ConfigTab token={token} onRefresh={fetchOverview} />
+          </TabErrorBoundary>
         )}
         {activeTab === 'stability' && (
-          <StabilityTab token={token} />
+          <TabErrorBoundary tabName="Stability">
+            <StabilityTab token={token} />
+          </TabErrorBoundary>
         )}
         {activeTab === 'alerts' && (
-          <AlertsTab token={token} />
+          <TabErrorBoundary tabName="Alerts">
+            <AlertsTab token={token} />
+          </TabErrorBoundary>
         )}
       </div>
     </div>
