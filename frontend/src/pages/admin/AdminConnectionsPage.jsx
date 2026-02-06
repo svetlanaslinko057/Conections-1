@@ -603,7 +603,6 @@ const ConfigSection = ({ title, config }) => {
 // ============================================================
 // ERROR BOUNDARY FOR TABS
 // ============================================================
-import { Component } from 'react';
 
 class TabErrorBoundary extends Component {
   constructor(props) {
