@@ -871,6 +871,7 @@ const AlertsTab = ({ token }) => {
   const [filter, setFilter] = useState('all');
   const [hideSupressed, setHideSupressed] = useState(false);
   const [toast, setToast] = useState(null);
+  const [runningBatch, setRunningBatch] = useState(false);
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -891,6 +892,33 @@ const AlertsTab = ({ token }) => {
 
   useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
 
+  // P2.1: Run Alerts Batch
+  const runAlertsBatch = async () => {
+    setRunningBatch(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/connections/alerts/run`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setToast({ 
+          message: `Batch complete: ${result.data.alerts_generated} alerts generated`, 
+          type: 'success' 
+        });
+        await fetchAlerts();
+      } else {
+        setToast({ message: 'Batch failed', type: 'error' });
+      }
+    } catch (err) {
+      setToast({ message: 'Batch failed', type: 'error' });
+    }
+    setRunningBatch(false);
+  };
+
   const handleAction = async (alertId, action) => {
     try {
       await fetch(`${BACKEND_URL}/api/admin/connections/alerts/${action}`, {
@@ -901,7 +929,7 @@ const AlertsTab = ({ token }) => {
         },
         body: JSON.stringify({ alert_id: alertId }),
       });
-      setToast({ message: `Alert ${action === 'send' ? 'sent' : 'suppressed'}`, type: 'success' });
+      setToast({ message: `Alert ${action === 'send' ? 'marked as sent (preview)' : 'suppressed'}`, type: 'success' });
       await fetchAlerts();
     } catch (err) {
       setToast({ message: `Failed to ${action} alert`, type: 'error' });
@@ -917,7 +945,7 @@ const AlertsTab = ({ token }) => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
-          types: { [type]: { ...alerts.config.types[type], enabled } } 
+          types: { [type]: { enabled } } 
         }),
       });
       setToast({ message: `Alert type ${enabled ? 'enabled' : 'disabled'}`, type: 'success' });
